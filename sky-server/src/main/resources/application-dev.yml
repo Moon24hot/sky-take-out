@@ -21,3 +21,10 @@ sky:
   wechat:
     appid:
     secret:
+    mchid:
+    mchSerialNo:
+    privateKeyFilePath:
+    apiV3Key:
+    weChatPayCertFilePath:
+    notifyUrl: https://5714a552.r21.cpolar.top/notify/paySuccess
+    refundNotifyUrl: https://5714a552.r21.cpolar.top/notify/refundSuccess
