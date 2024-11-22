@@ -1,5 +1,6 @@
 package com.sky.service.impl;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.sky.constant.MessageConstant;
 import com.sky.context.BaseContext;
@@ -14,16 +15,17 @@ import com.sky.service.OrderService;
 import com.sky.utils.WeChatPayUtil;
 import com.sky.vo.OrderPaymentVO;
 import com.sky.vo.OrderSubmitVO;
+import com.sky.websocket.WebSocketServer;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class OrderServiceImpl implements OrderService {
@@ -40,6 +42,8 @@ public class OrderServiceImpl implements OrderService {
     private UserMapper userMapper;
     @Autowired
     private WeChatPayUtil weChatPayUtil;
+    @Autowired
+    private WebSocketServer webSocketServer;
 
     /**
      * 用户下单
@@ -71,8 +75,8 @@ public class OrderServiceImpl implements OrderService {
         }
 
         //2. 向订单表中插入1条数据
-        Orders orders =new Orders();
-        BeanUtils.copyProperties(ordersSubmitDTO,orders);
+        Orders orders = new Orders();
+        BeanUtils.copyProperties(ordersSubmitDTO, orders);
         orders.setOrderTime(LocalDateTime.now());
         orders.setPayStatus(Orders.UN_PAID);
         orders.setStatus(Orders.PENDING_PAYMENT);
@@ -85,9 +89,9 @@ public class OrderServiceImpl implements OrderService {
 
         List<OrderDetail> orderDetailList = new ArrayList<>();
         //3. 向订单明细表插入n条数据
-        for(ShoppingCart cart : shoppingCartList) {
+        for (ShoppingCart cart : shoppingCartList) {
             OrderDetail orderDetail = new OrderDetail(); //订单明细
-            BeanUtils.copyProperties(cart,orderDetail);
+            BeanUtils.copyProperties(cart, orderDetail);
             orderDetail.setOrderId(orders.getId());//设置当前订单明细关联的订单id
             orderDetailList.add(orderDetail);
         }
@@ -159,5 +163,14 @@ public class OrderServiceImpl implements OrderService {
                 .build();
 
         orderMapper.update(orders);
+
+        //通过websocket向客户端浏览器推送消息 type orderId content
+        Map map = new HashMap<>();
+        map.put("type", 1);//1表示来单提醒  2表示客户催单
+        map.put("orderId", ordersDB.getId());
+        map.put("content", "订单号：" + outTradeNo);
+
+        String json = JSON.toJSONString(map);
+        webSocketServer.sendToAllClient(json);
     }
 }
